@@ -33,6 +33,7 @@ router.post('/login',(req,res)=>{
 
     Users.findByName({username}).first().then(user=>{
         if(user && bcrypt.compareSync(password, user.password)){
+            req.session.loggedIn = true;
             res.status(200).json({message: `Welcome ${user.username}`})
         }else{
             res.status(400).json({message: 'invalid credentials'})
@@ -44,31 +45,38 @@ router.post('/login',(req,res)=>{
 
 //middelware function 
 function needApass(req,res,next){
-    const {username, password} = req.headers;
+    
 
-    if(username && password){
-        Users.findByName({username}).first().then(user=>{
-            if(user && bcrypt.compareSync(password, user.password)){
-                next();
-            }else{
-                res.status(400).json({message: 'invalid credentials'})
-            }
-        }).catch(err=>{
-            res.status(500).json({message: 'error'})
-        
-        })
+    if(req.session && req.session.loggedIn){
+        next();
     }else{
-        res.status(500).json({message: 'provide valid credentials'})
+        res.status(401).json({message: 'provide valid credentials'})
     }
 
 }
 
+//get all users
 router.get('/',needApass,(req,res)=>{
     Users.find().then(users=>{
         res.status(200).json(users);
     }).catch(err=>{
         res.status(500).json({errorMessage: "error getting users"})
     })
+})
+
+//log out
+router.get('/logout',(req,res)=>{
+    if(req.session){
+        req.session.destroy(err=>{
+            if(err){
+                res.status(401).json({message: 'could not log out'})
+            }else{
+                res.status(200).json({message: "goodbye"})
+            }
+        })
+    }else{
+        res.status(200).json({message: 'logged out'})
+    }
 })
 
 module.exports = router;
